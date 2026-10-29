@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<!-- saved from url=(0049)https://lh-ai-day-examples.pages.dev/teams/team7/ -->
+<html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TEAM 7 데이터 품질 모니터링과 자동 정비</title>
+<style>
+:root{
+  --bg:#F7F8FA; --panel:#FFFFFF; --line:#E3E6EB; --text:#1F2933; --muted:#6B7685;
+  --brand:#5B52FF;
+  --ok:#2E7D5B; --warn:#C98A12; --bad:#C4372C; --info:#2F6FB3;
+  --seq1:#E8EEF6; --seq2:#C3D3E8; --seq3:#8FB0D6; --seq4:#4F7FB8; --seq5:#24528C;
+  --radius:8px; --font:"Pretendard","Noto Sans KR",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45}
+.wrap{max-width:1500px;margin:0 auto;padding:14px 20px 18px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+h1,h2,h3{margin:0}
+
+/* 머리글 */
+.head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.team{background:var(--brand);color:#fff;font-weight:700;font-size:12px;letter-spacing:.06em;padding:4px 10px;border-radius:5px}
+.head h1{font-size:21px;letter-spacing:-.01em}
+.tag{font-size:12px;color:var(--muted);border:1px solid var(--line);background:#fff;border-radius:99px;padding:2px 10px}
+.fake{margin-left:auto;font-size:12px;font-weight:600;color:var(--warn);border:1px solid #E8D3A0;background:#FBF4E1;border-radius:5px;padding:3px 10px}
+
+/* 세 줄 */
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.three div{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px;font-size:13px}
+.three b{display:block;font-size:11px;color:var(--brand);letter-spacing:.04em;margin-bottom:1px}
+
+/* 조작줄 */
+.ctrl{display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap}
+.btns{display:flex;gap:8px}
+button{font-family:inherit;font-size:14px;font-weight:600;border-radius:7px;padding:8px 16px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--text)}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button:hover{filter:brightness(.97)}
+.steps{display:flex;gap:6px;flex:1;min-width:480px}
+.step{flex:1;display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--muted);font-size:13px;transition:all .25s}
+.step i{font-style:normal;width:20px;height:20px;border-radius:50%;background:var(--seq1);color:var(--muted);font-size:11px;font-weight:700;display:grid;place-items:center;flex:none}
+.step.on{border-color:var(--brand);color:var(--brand);background:#F1F0FF;font-weight:600}
+.step.on i{background:var(--brand);color:#fff}
+.step.done{color:var(--ok)}
+.step.done i{background:var(--ok);color:#fff}
+
+/* 메인 */
+.rowA{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:12px;margin-top:12px}
+.rowB{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+.card{padding:12px 14px;position:relative}
+.card h2{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;align-items:baseline}
+.card h2 small{font-weight:400;font-size:11px}
+
+/* 작업 영역 */
+.ticker{border:1px solid var(--line);border-radius:6px;background:#FAFBFC;padding:7px 10px;margin-bottom:8px;min-height:52px;font-size:13px}
+.ticker .lbl{font-size:11px;color:var(--muted);display:block;margin-bottom:2px}
+.ticker .old{color:var(--bad);text-decoration:line-through;text-decoration-thickness:1px}
+.ticker .new{color:var(--ok);font-weight:600}
+.ticker .arr{color:var(--muted);margin:0 6px}
+.ticker .rt{font-size:11px;color:var(--brand);border:1px solid #CFCBFF;background:#F1F0FF;border-radius:4px;padding:0 6px;margin-left:8px}
+.prog{height:3px;background:var(--seq1);border-radius:2px;margin-top:6px;overflow:hidden}
+.prog>div{height:100%;width:0;background:var(--brand);transition:width .12s linear}
+.tbox{height:318px;overflow:auto;border:1px solid var(--line);border-radius:6px;position:relative}
+table{border-collapse:collapse;width:100%;font-size:12px;table-layout:fixed}
+th{position:sticky;top:0;background:#F1F3F6;color:var(--muted);font-weight:600;text-align:left;padding:5px 7px;border-bottom:1px solid var(--line);z-index:1}
+td{padding:0 7px;height:26px;border-bottom:1px solid #EEF0F3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+tr.scan td{box-shadow:inset 0 1px 0 var(--brand),inset 0 -1px 0 var(--brand)}
+td.n{color:var(--muted)}
+td.t{color:var(--muted);font-size:11px}
+td.c.err{background:#FBE6E3;color:var(--bad)}
+td.c.fixed{background:#E4F2EA;color:var(--ok)}
+td.c.manual{background:#FBF0D6;color:#8A5C00}
+td.c.flash{animation:fl .9s ease-out}
+@keyframes fl{0%{background:#7CCBA0;transform:scale(1.0)}100%{background:#E4F2EA}}
+.empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;color:var(--muted);background:rgba(255,255,255,.92);font-size:13px;padding:20px;z-index:3}
+.empty b{display:block;color:var(--text);font-size:15px;margin-bottom:4px}
+body[data-state="idle"] .empty{display:flex}
+body[data-state="idle"] .rowA .res,body[data-state="idle"] .rowB .card{opacity:.55}
+.legend{display:flex;gap:12px;margin-top:7px;font-size:11px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+
+/* 결과 */
+.resCol{display:flex;flex-direction:column;gap:12px;min-width:0}
+.top{display:grid;grid-template-columns:230px 1fr;gap:12px}
+.gauge{text-align:center}
+.gauge svg{width:100%;max-width:210px;height:auto}
+.gauge .sub{font-size:12px;color:var(--muted);margin-top:-4px}
+.gauge .sub b{color:var(--text)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi{border:1px solid var(--line);border-radius:7px;padding:8px 12px}
+.kpi .v{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi.ok .v{color:var(--ok)} .kpi.warn .v{color:var(--warn)} .kpi.bad .v{color:var(--bad)}
+.chart svg{width:100%;height:auto;display:block}
+
+/* 막대 */
+.bar{display:grid;grid-template-columns:128px 1fr 74px;gap:8px;align-items:center;font-size:12px;margin:6px 0}
+.bar .nm{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .tr{height:12px;background:#F1F3F6;border-radius:3px;display:flex;overflow:hidden}
+.bar .tr i{display:block;height:100%;transition:width .15s}
+.bar .tr .e{background:var(--bad)} .bar .tr .m{background:var(--warn)} .bar .tr .f{background:var(--ok)}
+.bar .ct{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+
+/* 히트맵 */
+.heat{display:grid;grid-template-columns:78px repeat(5,1fr);gap:3px;font-size:11px}
+.heat .h{color:var(--muted);text-align:center;padding:2px 0}
+.heat .r{color:var(--muted);align-self:center}
+.heat .z{height:30px;border-radius:4px;display:grid;place-items:center;background:#F1F3F6;color:var(--muted);font-variant-numeric:tabular-nums;transition:background .2s}
+
+/* 규칙 로그 */
+.rules{display:flex;flex-direction:column;gap:3px}
+.rule{display:grid;grid-template-columns:22px 1fr 44px;gap:6px;align-items:center;padding:3px 6px;border-radius:5px;font-size:12px;border:1px solid transparent;color:var(--muted)}
+.rule b{font-size:11px;color:var(--muted)}
+.rule .ex{display:block;font-size:11px;color:var(--muted);opacity:.85}
+.rule .nm{color:var(--text)}
+.rule .k{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.rule.hit{background:#F1F0FF;border-color:#CFCBFF}
+.rule.used .k{color:var(--ok)}
+.rule.used b{color:var(--brand)}
+
+.foot{margin-top:12px;display:flex;justify-content:space-between;font-size:12px;color:var(--muted);flex-wrap:wrap;gap:8px}
+.foot a{color:var(--brand);text-decoration:none;font-weight:600}
+</style>
+</head>
+<body data-state="done" data-done="1"><div style="background:#C4372C;color:#fff;font-family:Pretendard,&#39;Noto Sans KR&#39;,system-ui,sans-serif;font-size:16px;line-height:1.5;padding:10px 18px;text-align:center"><b>예시일 뿐 정답이 아닙니다.</b> 가상 데이터로 만든 가능성 시연입니다. 우리 팀 실무에 맞춰 기능과 형태를 다시 정해 만드세요. <a href="https://lh-ai-day-examples.pages.dev/index.html" style="color:#fff;text-decoration:underline">예시 모음으로</a></div>
+<div class="wrap">
+
+<div class="head">
+  <span class="team">TEAM 7</span>
+  <h1>데이터 품질 모니터링과 자동 정비</h1>
+  <span class="tag">IT</span><span class="tag">데이터운영</span>
+  <span class="fake">가상 데이터</span>
+</div>
+
+<div class="three">
+  <div><b>누가 쓰나</b>데이터 운영 담당자, 데이터 관리 부서</div>
+  <div><b>무엇이 불편</b>주소, 코드값, 텍스트 패턴 오류를 눈으로 찾아 하나씩 수정</div>
+  <div><b>어떻게</b>표준 가이드 규칙으로 자동 정비, 품질 점수를 실시간 모니터링</div>
+</div>
+
+<div class="ctrl">
+  <div class="btns">
+    <button id="btnLoad">예시 데이터 불러오기</button>
+    <button id="btnPlay" class="primary">↺ 다시</button>
+  </div>
+  <div class="steps" id="steps">
+    <div class="step done"><i>1</i>파일 읽기</div>
+    <div class="step done"><i>2</i>오류 탐지</div>
+    <div class="step done"><i>3</i>표준 규칙 정비</div>
+    <div class="step done"><i>4</i>재검증</div>
+    <div class="step done"><i>5</i>대시보드 반영</div>
+  </div>
+</div>
+
+<div class="rowA">
+  <div class="panel card" id="work">
+    <h2>작업 영역: 레코드 100행 x 검사 항목 5열 <small id="tblInfo">레코드 100행 불러옴</small></h2>
+    <div class="ticker" id="ticker">
+      <span class="lbl">정비 전후</span>
+      <span id="tkBody" style="color: var(--text);">정비 완료: 품질 점수 72 → 96, 검토 대기 20건은 담당자에게 전달</span>
+      <div class="prog"><div id="prog" style="width: 100%;"></div></div>
+    </div>
+    <div class="tbox" id="tbox">
+      <table>
+        <colgroup><col style="width:30px"><col style="width:62px"><col style="width:112px"><col style="width:178px"><col style="width:44px"><col style="width:50px"><col style="width:90px"></colgroup>
+        <thead><tr><th>#</th><th>원본</th><th>기관명</th><th>주소</th><th>시도</th><th>업종</th><th>연락처</th></tr></thead>
+        <tbody id="tb"><tr class=""><td class="n">1</td><td class="t">사업장대</td><td class="c" title="">주식회사 푸른네트웍스</td><td class="c fixed flash" title="정비 전: 인천광역시 연수구 컨벤시아데로">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">K64</td><td class="c" title="">032-555-0159</td></tr><tr class=""><td class="n">2</td><td class="t">시설물대</td><td class="c" title="">주식회사 나루솔루션</td><td class="c" title="">서울특별시 중구 세종대로</td><td class="c fixed flash" title="정비 전: 011">11</td><td class="c" title="">G46</td><td class="c" title="">02-555-0125</td></tr><tr class=""><td class="n">3</td><td class="t">계약기관</td><td class="c" title="">주식회사 미르네트웍스</td><td class="c fixed flash" title="정비 전: 서울 강남구 테해란로">서울특별시 강남구 테헤란로</td><td class="c" title="">11</td><td class="c fixed flash" title="정비 전: M-70">M70</td><td class="c" title="">02-555-0140</td></tr><tr class=""><td class="n">4</td><td class="t">민원접수</td><td class="c" title="">주식회사 미르시스템</td><td class="c" title="">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">K64</td><td class="c fixed flash" title="정비 전: 032.555.0179">032-555-0179</td></tr><tr class=""><td class="n">5</td><td class="t">자산목록</td><td class="c fixed flash" title="정비 전: 온새미네트웍스(주)">주식회사 온새미네트웍스</td><td class="c fixed flash" title="정비 전: 대전 유성구 대학로">대전광역시 유성구 대학로</td><td class="c" title="">30</td><td class="c" title="">M70</td><td class="c" title="">042-555-0183</td></tr><tr class=""><td class="n">6</td><td class="t">거래처코</td><td class="c" title="">주식회사 한울시스템</td><td class="c fixed flash" title="정비 전: 광주 동구 충장로">광주광역시 동구 충장로</td><td class="c fixed flash" title="정비 전: 029">29</td><td class="c" title="">J62</td><td class="c" title="">062-555-0128</td></tr><tr class=""><td class="n">7</td><td class="t">사업장대</td><td class="c" title="">주식회사 다온시스템</td><td class="c fixed flash" title="정비 전: 인천 연수구 컨벤시아대로">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c fixed flash" title="정비 전: k64">K64</td><td class="c fixed flash" title="정비 전: 032 555 0149">032-555-0149</td></tr><tr class=""><td class="n">8</td><td class="t">시설물대</td><td class="c" title="">주식회사 푸른정보</td><td class="c" title="">대전광역시 유성구 대학로</td><td class="c" title="">30</td><td class="c" title="">G46</td><td class="c" title="">042-555-0153</td></tr><tr class=""><td class="n">9</td><td class="t">계약기관</td><td class="c" title="">주식회사 다온정보</td><td class="c fixed flash" title="정비 전: 서울특별시중구 세종대로">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c" title="">M70</td><td class="c" title="">02-555-0151</td></tr><tr class=""><td class="n">10</td><td class="t">민원접수</td><td class="c" title="">주식회사 미르솔루션</td><td class="c" title="">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">F41</td><td class="c fixed flash" title="정비 전: 0525550156">052-555-0156</td></tr><tr class=""><td class="n">11</td><td class="t">자산목록</td><td class="c" title="">주식회사 다온네트웍스</td><td class="c fixed flash" title="정비 전: 울산광역시 남구 삼상로">울산광역시 남구 삼산로</td><td class="c fixed flash" title="정비 전: ３１">31</td><td class="c manual" title="담당자 검토 대기: null">null</td><td class="c" title="">052-555-0113</td></tr><tr class=""><td class="n">12</td><td class="t">거래처코</td><td class="c" title="">주식회사 한울연구소</td><td class="c" title="">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c manual" title="담당자 검토 대기: N/A">N/A</td><td class="c" title="">02-555-0148</td></tr><tr class=""><td class="n">13</td><td class="t">사업장대</td><td class="c fixed flash" title="정비 전: 주식회사푸른시스템">주식회사 푸른시스템</td><td class="c fixed flash" title="정비 전: 대전광역시 유성구대학로">대전광역시 유성구 대학로</td><td class="c" title="">30</td><td class="c fixed flash" title="정비 전: M 70">M70</td><td class="c" title="">042-555-0126</td></tr><tr class=""><td class="n">14</td><td class="t">시설물대</td><td class="c" title="">주식회사 푸른정보</td><td class="c fixed flash" title="정비 전: 부산광역시해운대구 해운대로">부산광역시 해운대구 해운대로</td><td class="c" title="">26</td><td class="c" title="">G46</td><td class="c" title="">051-555-0157</td></tr><tr class=""><td class="n">15</td><td class="t">계약기관</td><td class="c" title="">주식회사 푸른솔루션</td><td class="c fixed flash" title="정비 전: 대구 중구 동성로">대구광역시 중구 동성로</td><td class="c" title="">27</td><td class="c" title="">M70</td><td class="c fixed flash" title="정비 전: 053.555.0122">053-555-0122</td></tr><tr class=""><td class="n">16</td><td class="t">민원접수</td><td class="c" title="">주식회사 이든테크</td><td class="c" title="">광주광역시 동구 충장로</td><td class="c" title="">29</td><td class="c fixed flash" title="정비 전: C-26">C26</td><td class="c" title="">062-555-0121</td></tr><tr class=""><td class="n">17</td><td class="t">자산목록</td><td class="c fixed flash" title="정비 전: 나루정보(주)">주식회사 나루정보</td><td class="c fixed flash" title="정비 전: 경기도 성남시판교로">경기도 성남시 판교로</td><td class="c" title="">41</td><td class="c fixed flash" title="정비 전: J-62">J62</td><td class="c" title="">031-555-0133</td></tr><tr class=""><td class="n">18</td><td class="t">거래처코</td><td class="c" title="">주식회사 미르솔루션</td><td class="c fixed flash" title="정비 전: 서울특별시강남구 테헤란로">서울특별시 강남구 테헤란로</td><td class="c manual" title="담당자 검토 대기: 미상">미상</td><td class="c" title="">K64</td><td class="c" title="">02-555-0150</td></tr><tr class=""><td class="n">19</td><td class="t">사업장대</td><td class="c" title="">주식회사 하늘테크</td><td class="c" title="">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">G46</td><td class="c" title="">032-555-0152</td></tr><tr class=""><td class="n">20</td><td class="t">시설물대</td><td class="c fixed flash" title="정비 전: (주)새봄네트웍스">주식회사 새봄네트웍스</td><td class="c" title="">대전광역시 유성구 대학로</td><td class="c" title="">30</td><td class="c" title="">G46</td><td class="c" title="">042-555-0189</td></tr><tr class=""><td class="n">21</td><td class="t">계약기관</td><td class="c" title="">주식회사 새봄연구소</td><td class="c" title="">대전광역시 유성구 대학로</td><td class="c" title="">30</td><td class="c manual" title="담당자 검토 대기: C?6">C?6</td><td class="c" title="">042-555-0152</td></tr><tr class=""><td class="n">22</td><td class="t">민원접수</td><td class="c" title="">주식회사 푸른시스템</td><td class="c fixed flash" title="정비 전: 대구 중구 동성로">대구광역시 중구 동성로</td><td class="c" title="">27</td><td class="c" title="">C26</td><td class="c" title="">053-555-0170</td></tr><tr class=""><td class="n">23</td><td class="t">자산목록</td><td class="c" title="">주식회사 미르네트웍스</td><td class="c" title="">대구광역시 중구 동성로</td><td class="c" title="">27</td><td class="c" title="">J62</td><td class="c" title="">053-555-0149</td></tr><tr class=""><td class="n">24</td><td class="t">거래처코</td><td class="c" title="">주식회사 미르솔루션</td><td class="c fixed flash" title="정비 전: 대전 유성구 대학로">대전광역시 유성구 대학로</td><td class="c" title="">30</td><td class="c" title="">C26</td><td class="c" title="">042-555-0160</td></tr><tr class=""><td class="n">25</td><td class="t">사업장대</td><td class="c fixed flash" title="정비 전: 미르테크(주)">주식회사 미르테크</td><td class="c fixed flash" title="정비 전: 부산광역시 해운대구 해운데로">부산광역시 해운대구 해운대로</td><td class="c" title="">26</td><td class="c" title="">K64</td><td class="c fixed flash" title="정비 전: 051 555 0112">051-555-0112</td></tr><tr class=""><td class="n">26</td><td class="t">시설물대</td><td class="c" title="">주식회사 미르솔루션</td><td class="c fixed flash" title="정비 전: 인천광역시 연수구컨벤시아대로">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c manual" title="담당자 검토 대기: N/A">N/A</td><td class="c" title="">032-555-0171</td></tr><tr class=""><td class="n">27</td><td class="t">계약기관</td><td class="c" title="">주식회사 이든시스템</td><td class="c" title="">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">G46</td><td class="c" title="">032-555-0177</td></tr><tr class=""><td class="n">28</td><td class="t">민원접수</td><td class="c fixed flash" title="정비 전: (주)한울연구소">주식회사 한울연구소</td><td class="c" title="">서울특별시 강남구 테헤란로</td><td class="c" title="">11</td><td class="c fixed flash" title="정비 전: F 41">F41</td><td class="c fixed flash" title="정비 전: 02 555 0157">02-555-0157</td></tr><tr class=""><td class="n">29</td><td class="t">자산목록</td><td class="c" title="">주식회사 푸른테크</td><td class="c fixed flash" title="정비 전: 인천광역시 연수구 컨벤시아데로">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">M70</td><td class="c" title="">032-555-0133</td></tr><tr class=""><td class="n">30</td><td class="t">거래처코</td><td class="c fixed flash" title="정비 전: 주식회사가온시스템">주식회사 가온시스템</td><td class="c fixed flash" title="정비 전: 울산광역시남구 삼산로">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">J62</td><td class="c" title="">052-555-0112</td></tr><tr class=""><td class="n">31</td><td class="t">사업장대</td><td class="c" title="">주식회사 한울네트웍스</td><td class="c fixed flash" title="정비 전: 서울 강남구 테헤란로">서울특별시 강남구 테헤란로</td><td class="c" title="">11</td><td class="c" title="">G46</td><td class="c fixed flash" title="정비 전: 025550132">02-555-0132</td></tr><tr class=""><td class="n">32</td><td class="t">시설물대</td><td class="c" title="">주식회사 다온솔루션</td><td class="c manual" title="담당자 검토 대기: 서울특별시 중구 행복로">서울특별시 중구 행복로</td><td class="c" title="">11</td><td class="c" title="">F41</td><td class="c" title="">02-555-0122</td></tr><tr class=""><td class="n">33</td><td class="t">계약기관</td><td class="c" title="">주식회사 한울시스템</td><td class="c fixed flash" title="정비 전: 서울 중구 세종대로">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c fixed flash" title="정비 전: J 63">J63</td><td class="c" title="">02-555-0182</td></tr><tr class=""><td class="n">34</td><td class="t">민원접수</td><td class="c" title="">주식회사 새봄네트웍스</td><td class="c fixed flash" title="정비 전: 인천 연수구 컨벤시아대로">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c manual" title="담당자 검토 대기: -">-</td><td class="c fixed flash" title="정비 전: 032.555.0131">032-555-0131</td></tr><tr class=""><td class="n">35</td><td class="t">자산목록</td><td class="c" title="">주식회사 가온정보</td><td class="c" title="">대전광역시 유성구 대학로</td><td class="c" title="">30</td><td class="c" title="">C26</td><td class="c" title="">042-555-0135</td></tr><tr class=""><td class="n">36</td><td class="t">거래처코</td><td class="c" title="">주식회사 다온네트웍스</td><td class="c fixed flash" title="정비 전: 서울특별시중구 세종대로">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c" title="">N74</td><td class="c fixed flash" title="정비 전: 02.555.0175">02-555-0175</td></tr><tr class=""><td class="n">37</td><td class="t">사업장대</td><td class="c" title="">주식회사 새봄정보</td><td class="c" title="">대구광역시 중구 동성로</td><td class="c" title="">27</td><td class="c" title="">K64</td><td class="c" title="">053-555-0170</td></tr><tr class=""><td class="n">38</td><td class="t">시설물대</td><td class="c" title="">주식회사 한울네트웍스</td><td class="c fixed flash" title="정비 전: 대구광역시 중구 동선로">대구광역시 중구 동성로</td><td class="c" title="">27</td><td class="c" title="">C26</td><td class="c" title="">053-555-0157</td></tr><tr class=""><td class="n">39</td><td class="t">계약기관</td><td class="c" title="">주식회사 하늘네트웍스</td><td class="c" title="">울산광역시 남구 삼산로</td><td class="c fixed flash" title="정비 전: 031">31</td><td class="c" title="">G46</td><td class="c" title="">052-555-0163</td></tr><tr class=""><td class="n">40</td><td class="t">민원접수</td><td class="c" title="">주식회사 하늘네트웍스</td><td class="c fixed flash" title="정비 전: 서울특별시 중구세종대로">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c" title="">N74</td><td class="c" title="">02-555-0194</td></tr><tr class=""><td class="n">41</td><td class="t">자산목록</td><td class="c" title="">주식회사 다온네트웍스</td><td class="c" title="">서울특별시 중구 세종대로</td><td class="c fixed flash" title="정비 전: 서울">11</td><td class="c" title="">C26</td><td class="c fixed flash" title="정비 전: 02.555.0144">02-555-0144</td></tr><tr class=""><td class="n">42</td><td class="t">거래처코</td><td class="c fixed flash" title="정비 전: 푸른솔루션(주)">주식회사 푸른솔루션</td><td class="c fixed flash" title="정비 전: 부산광역시 해운대구 해운데로">부산광역시 해운대구 해운대로</td><td class="c" title="">26</td><td class="c manual" title="담당자 검토 대기: null">null</td><td class="c fixed flash" title="정비 전: 0515550136">051-555-0136</td></tr><tr class=""><td class="n">43</td><td class="t">사업장대</td><td class="c" title="">주식회사 한울테크</td><td class="c" title="">경기도 성남시 판교로</td><td class="c" title="">41</td><td class="c fixed flash" title="정비 전: k64">K64</td><td class="c" title="">031-555-0184</td></tr><tr class=""><td class="n">44</td><td class="t">시설물대</td><td class="c" title="">주식회사 미르솔루션</td><td class="c fixed flash" title="정비 전: 서울 강남구 테헤란로">서울특별시 강남구 테헤란로</td><td class="c fixed flash" title="정비 전: １１">11</td><td class="c fixed flash" title="정비 전: F-41">F41</td><td class="c fixed flash" title="정비 전: 02.555.0175">02-555-0175</td></tr><tr class=""><td class="n">45</td><td class="t">계약기관</td><td class="c" title="">주식회사 온새미연구소</td><td class="c" title="">광주광역시 동구 충장로</td><td class="c" title="">29</td><td class="c" title="">K64</td><td class="c" title="">062-555-0130</td></tr><tr class=""><td class="n">46</td><td class="t">민원접수</td><td class="c fixed flash" title="정비 전: 주식회사푸른네트웍스">주식회사 푸른네트웍스</td><td class="c" title="">광주광역시 동구 충장로</td><td class="c" title="">29</td><td class="c" title="">J63</td><td class="c" title="">062-555-0194</td></tr><tr class=""><td class="n">47</td><td class="t">자산목록</td><td class="c" title="">주식회사 다온정보</td><td class="c fixed flash" title="정비 전: 인천광역시 연수구 컨벤시아데로">인천광역시 연수구 컨벤시아대로</td><td class="c manual" title="담당자 검토 대기: 11/41">11/41</td><td class="c" title="">M70</td><td class="c" title="">032-555-0177</td></tr><tr class=""><td class="n">48</td><td class="t">거래처코</td><td class="c" title="">주식회사 새봄네트웍스</td><td class="c manual" title="담당자 검토 대기: 광주광역시 동구 미래로">광주광역시 동구 미래로</td><td class="c" title="">29</td><td class="c" title="">G46</td><td class="c" title="">062-555-0161</td></tr><tr class=""><td class="n">49</td><td class="t">사업장대</td><td class="c" title="">주식회사 온새미솔루션</td><td class="c fixed flash" title="정비 전: 광주광역시 동구충장로">광주광역시 동구 충장로</td><td class="c" title="">29</td><td class="c" title="">K64</td><td class="c" title="">062-555-0134</td></tr><tr class=""><td class="n">50</td><td class="t">시설물대</td><td class="c" title="">주식회사 이든정보</td><td class="c" title="">부산광역시 해운대구 해운대로</td><td class="c fixed flash" title="정비 전: ２６">26</td><td class="c" title="">G46</td><td class="c fixed flash" title="정비 전: 051 555 0166">051-555-0166</td></tr><tr class=""><td class="n">51</td><td class="t">계약기관</td><td class="c" title="">주식회사 온새미시스템</td><td class="c manual" title="담당자 검토 대기: 광주광역시 동구 새빛로">광주광역시 동구 새빛로</td><td class="c fixed flash" title="정비 전: 광주">29</td><td class="c" title="">N74</td><td class="c" title="">062-555-0123</td></tr><tr class=""><td class="n">52</td><td class="t">민원접수</td><td class="c" title="">주식회사 새봄정보</td><td class="c fixed flash" title="정비 전: 서울특별시강남구 테헤란로">서울특별시 강남구 테헤란로</td><td class="c fixed flash" title="정비 전: 011">11</td><td class="c" title="">M70</td><td class="c fixed flash" title="정비 전: 02 555 0170">02-555-0170</td></tr><tr class=""><td class="n">53</td><td class="t">자산목록</td><td class="c" title="">주식회사 미르정보</td><td class="c" title="">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">J62</td><td class="c" title="">052-555-0161</td></tr><tr class=""><td class="n">54</td><td class="t">거래처코</td><td class="c" title="">주식회사 온새미정보</td><td class="c fixed flash" title="정비 전: 인천 연수구 컨벤시아대로">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">M70</td><td class="c" title="">032-555-0181</td></tr><tr class=""><td class="n">55</td><td class="t">사업장대</td><td class="c" title="">주식회사 하늘시스템</td><td class="c fixed flash" title="정비 전: 광주 동구 충장로">광주광역시 동구 충장로</td><td class="c" title="">29</td><td class="c" title="">G46</td><td class="c" title="">062-555-0183</td></tr><tr class=""><td class="n">56</td><td class="t">시설물대</td><td class="c" title="">주식회사 나루네트웍스</td><td class="c" title="">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">N74</td><td class="c" title="">052-555-0118</td></tr><tr class=""><td class="n">57</td><td class="t">계약기관</td><td class="c" title="">주식회사 새봄테크</td><td class="c" title="">대구광역시 중구 동성로</td><td class="c" title="">27</td><td class="c" title="">F41</td><td class="c" title="">053-555-0184</td></tr><tr class=""><td class="n">58</td><td class="t">민원접수</td><td class="c fixed flash" title="정비 전: (주)가온시스템">주식회사 가온시스템</td><td class="c" title="">경기도 성남시 판교로</td><td class="c" title="">41</td><td class="c" title="">M70</td><td class="c" title="">031-555-0174</td></tr><tr class=""><td class="n">59</td><td class="t">자산목록</td><td class="c" title="">주식회사 하늘시스템</td><td class="c" title="">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">C26</td><td class="c" title="">032-555-0119</td></tr><tr class=""><td class="n">60</td><td class="t">거래처코</td><td class="c" title="">주식회사 가온연구소</td><td class="c" title="">경기도 성남시 판교로</td><td class="c" title="">41</td><td class="c" title="">K64</td><td class="c" title="">031-555-0120</td></tr><tr class=""><td class="n">61</td><td class="t">사업장대</td><td class="c" title="">주식회사 하늘네트웍스</td><td class="c" title="">대구광역시 중구 동성로</td><td class="c fixed flash" title="정비 전: 027">27</td><td class="c manual" title="담당자 검토 대기: K6">K6</td><td class="c" title="">053-555-0145</td></tr><tr class=""><td class="n">62</td><td class="t">시설물대</td><td class="c" title="">주식회사 다온연구소</td><td class="c" title="">서울특별시 강남구 테헤란로</td><td class="c" title="">11</td><td class="c manual" title="담당자 검토 대기: M7O">M7O</td><td class="c" title="">02-555-0135</td></tr><tr class=""><td class="n">63</td><td class="t">계약기관</td><td class="c fixed flash" title="정비 전: 주식회사푸른네트웍스">주식회사 푸른네트웍스</td><td class="c fixed flash" title="정비 전: 서울 강남구 테헤란로">서울특별시 강남구 테헤란로</td><td class="c" title="">11</td><td class="c" title="">M70</td><td class="c" title="">02-555-0196</td></tr><tr class=""><td class="n">64</td><td class="t">민원접수</td><td class="c fixed flash" title="정비 전: 주식회사나루정보">주식회사 나루정보</td><td class="c fixed flash" title="정비 전: 서울 중구 세종대로">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c" title="">F41</td><td class="c" title="">02-555-0149</td></tr><tr class=""><td class="n">65</td><td class="t">자산목록</td><td class="c" title="">주식회사 이든시스템</td><td class="c" title="">경기도 성남시 판교로</td><td class="c" title="">41</td><td class="c manual" title="담당자 검토 대기: -">-</td><td class="c" title="">031-555-0145</td></tr><tr class=""><td class="n">66</td><td class="t">거래처코</td><td class="c" title="">주식회사 이든테크</td><td class="c" title="">인천광역시 연수구 컨벤시아대로</td><td class="c fixed flash" title="정비 전: ２８">28</td><td class="c" title="">K64</td><td class="c fixed flash" title="정비 전: 0325550182">032-555-0182</td></tr><tr class=""><td class="n">67</td><td class="t">사업장대</td><td class="c" title="">주식회사 이든테크</td><td class="c fixed flash" title="정비 전: 서울 중구 세종대로">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c" title="">J63</td><td class="c fixed flash" title="정비 전: 025550149">02-555-0149</td></tr><tr class=""><td class="n">68</td><td class="t">시설물대</td><td class="c fixed flash" title="정비 전: (주)나루시스템">주식회사 나루시스템</td><td class="c" title="">경기도 성남시 판교로</td><td class="c" title="">41</td><td class="c" title="">G46</td><td class="c" title="">031-555-0178</td></tr><tr class=""><td class="n">69</td><td class="t">계약기관</td><td class="c" title="">주식회사 가온시스템</td><td class="c" title="">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">M70</td><td class="c" title="">032-555-0140</td></tr><tr class=""><td class="n">70</td><td class="t">민원접수</td><td class="c" title="">주식회사 미르솔루션</td><td class="c manual" title="담당자 검토 대기: 광주광역시 동구 새빛로">광주광역시 동구 새빛로</td><td class="c" title="">29</td><td class="c" title="">N74</td><td class="c" title="">062-555-0181</td></tr><tr class=""><td class="n">71</td><td class="t">자산목록</td><td class="c" title="">주식회사 한울시스템</td><td class="c" title="">대전광역시 유성구 대학로</td><td class="c fixed flash" title="정비 전: 030">30</td><td class="c" title="">J62</td><td class="c" title="">042-555-0124</td></tr><tr class=""><td class="n">72</td><td class="t">거래처코</td><td class="c fixed flash" title="정비 전: (주)새봄시스템">주식회사 새봄시스템</td><td class="c fixed flash" title="정비 전: 서울 강남구 테헤란로">서울특별시 강남구 테헤란로</td><td class="c" title="">11</td><td class="c" title="">J63</td><td class="c" title="">02-555-0116</td></tr><tr class=""><td class="n">73</td><td class="t">사업장대</td><td class="c" title="">주식회사 한울정보</td><td class="c" title="">서울특별시 강남구 테헤란로</td><td class="c" title="">11</td><td class="c" title="">N74</td><td class="c" title="">02-555-0156</td></tr><tr class=""><td class="n">74</td><td class="t">시설물대</td><td class="c" title="">주식회사 다온시스템</td><td class="c" title="">울산광역시 남구 삼산로</td><td class="c fixed flash" title="정비 전: ３１">31</td><td class="c" title="">J62</td><td class="c" title="">052-555-0165</td></tr><tr class=""><td class="n">75</td><td class="t">계약기관</td><td class="c" title="">주식회사 온새미연구소</td><td class="c fixed flash" title="정비 전: 부산 해운대구 해운대로">부산광역시 해운대구 해운대로</td><td class="c fixed flash" title="정비 전: ２６">26</td><td class="c" title="">K64</td><td class="c fixed flash" title="정비 전: 051 555 0113">051-555-0113</td></tr><tr class=""><td class="n">76</td><td class="t">민원접수</td><td class="c" title="">주식회사 온새미테크</td><td class="c manual" title="담당자 검토 대기: 울산광역시 남구 행복로">울산광역시 남구 행복로</td><td class="c" title="">31</td><td class="c fixed flash" title="정비 전: C 26">C26</td><td class="c" title="">052-555-0157</td></tr><tr class=""><td class="n">77</td><td class="t">자산목록</td><td class="c" title="">주식회사 가온솔루션</td><td class="c" title="">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c manual" title="담당자 검토 대기: 없음">없음</td><td class="c" title="">052-555-0110</td></tr><tr class=""><td class="n">78</td><td class="t">거래처코</td><td class="c fixed flash" title="정비 전: 한울연구소(주)">주식회사 한울연구소</td><td class="c" title="">경기도 성남시 판교로</td><td class="c" title="">41</td><td class="c" title="">M70</td><td class="c" title="">031-555-0159</td></tr><tr class=""><td class="n">79</td><td class="t">사업장대</td><td class="c" title="">주식회사 새봄테크</td><td class="c fixed flash" title="정비 전: 울산광역시남구 삼산로">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">J62</td><td class="c" title="">052-555-0155</td></tr><tr class=""><td class="n">80</td><td class="t">시설물대</td><td class="c" title="">주식회사 가온테크</td><td class="c fixed flash" title="정비 전: 대전 유성구 대학로">대전광역시 유성구 대학로</td><td class="c" title="">30</td><td class="c" title="">M70</td><td class="c" title="">042-555-0190</td></tr><tr class=""><td class="n">81</td><td class="t">계약기관</td><td class="c" title="">주식회사 나루연구소</td><td class="c" title="">광주광역시 동구 충장로</td><td class="c fixed flash" title="정비 전: 광주">29</td><td class="c" title="">C26</td><td class="c" title="">062-555-0127</td></tr><tr class=""><td class="n">82</td><td class="t">민원접수</td><td class="c" title="">주식회사 하늘연구소</td><td class="c fixed flash" title="정비 전: 울산 남구 삼산로">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">G46</td><td class="c" title="">052-555-0112</td></tr><tr class=""><td class="n">83</td><td class="t">자산목록</td><td class="c" title="">주식회사 새봄테크</td><td class="c" title="">경기도 성남시 판교로</td><td class="c" title="">41</td><td class="c" title="">N74</td><td class="c" title="">031-555-0179</td></tr><tr class=""><td class="n">84</td><td class="t">거래처코</td><td class="c fixed flash" title="정비 전: (주)나루연구소">주식회사 나루연구소</td><td class="c manual" title="담당자 검토 대기: 경기도 성남시 행복로">경기도 성남시 행복로</td><td class="c" title="">41</td><td class="c fixed flash" title="정비 전: F 41">F41</td><td class="c" title="">031-555-0189</td></tr><tr class=""><td class="n">85</td><td class="t">사업장대</td><td class="c" title="">주식회사 푸른테크</td><td class="c fixed flash" title="정비 전: 울산광역시 남구 삼상로">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">G46</td><td class="c" title="">052-555-0198</td></tr><tr class=""><td class="n">86</td><td class="t">시설물대</td><td class="c fixed flash" title="정비 전: 이든솔루션(주)">주식회사 이든솔루션</td><td class="c fixed flash" title="정비 전: 서울특별시 중구 세종데로">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c" title="">M70</td><td class="c" title="">02-555-0170</td></tr><tr class=""><td class="n">87</td><td class="t">계약기관</td><td class="c" title="">주식회사 다온솔루션</td><td class="c" title="">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c manual" title="담당자 검토 대기: 미기재">미기재</td><td class="c" title="">052-555-0121</td></tr><tr class=""><td class="n">88</td><td class="t">민원접수</td><td class="c fixed flash" title="정비 전: 주식회사나루테크">주식회사 나루테크</td><td class="c fixed flash" title="정비 전: 인천광역시 연수구컨벤시아대로">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c fixed flash" title="정비 전: c26">C26</td><td class="c" title="">032-555-0167</td></tr><tr class=""><td class="n">89</td><td class="t">자산목록</td><td class="c fixed flash" title="정비 전: 주식회사푸른솔루션">주식회사 푸른솔루션</td><td class="c fixed flash" title="정비 전: 인천 연수구 컨벤시아대로">인천광역시 연수구 컨벤시아대로</td><td class="c" title="">28</td><td class="c" title="">M70</td><td class="c" title="">032-555-0132</td></tr><tr class=""><td class="n">90</td><td class="t">거래처코</td><td class="c" title="">주식회사 온새미시스템</td><td class="c" title="">대전광역시 유성구 대학로</td><td class="c fixed flash" title="정비 전: 대전">30</td><td class="c" title="">M70</td><td class="c" title="">042-555-0152</td></tr><tr class=""><td class="n">91</td><td class="t">사업장대</td><td class="c" title="">주식회사 새봄시스템</td><td class="c fixed flash" title="정비 전: 부산광역시 해운대구 해운데로">부산광역시 해운대구 해운대로</td><td class="c" title="">26</td><td class="c fixed flash" title="정비 전: j63">J63</td><td class="c" title="">051-555-0198</td></tr><tr class=""><td class="n">92</td><td class="t">시설물대</td><td class="c" title="">주식회사 이든솔루션</td><td class="c fixed flash" title="정비 전: 울산광역시 남구삼산로">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">J63</td><td class="c" title="">052-555-0165</td></tr><tr class=""><td class="n">93</td><td class="t">계약기관</td><td class="c" title="">주식회사 푸른네트웍스</td><td class="c" title="">서울특별시 강남구 테헤란로</td><td class="c" title="">11</td><td class="c fixed flash" title="정비 전: N-74">N74</td><td class="c" title="">02-555-0113</td></tr><tr class=""><td class="n">94</td><td class="t">민원접수</td><td class="c fixed flash" title="정비 전: (주)미르연구소">주식회사 미르연구소</td><td class="c" title="">광주광역시 동구 충장로</td><td class="c" title="">29</td><td class="c" title="">M70</td><td class="c" title="">062-555-0146</td></tr><tr class=""><td class="n">95</td><td class="t">자산목록</td><td class="c fixed flash" title="정비 전: 미르연구소(주)">주식회사 미르연구소</td><td class="c fixed flash" title="정비 전: 울산광역시 남구 삼상로">울산광역시 남구 삼산로</td><td class="c fixed flash" title="정비 전: 울산">31</td><td class="c" title="">J62</td><td class="c" title="">052-555-0164</td></tr><tr class=""><td class="n">96</td><td class="t">거래처코</td><td class="c" title="">주식회사 가온시스템</td><td class="c" title="">울산광역시 남구 삼산로</td><td class="c fixed flash" title="정비 전: 울산">31</td><td class="c" title="">J63</td><td class="c" title="">052-555-0140</td></tr><tr class=""><td class="n">97</td><td class="t">사업장대</td><td class="c fixed flash" title="정비 전: (주)미르네트웍스">주식회사 미르네트웍스</td><td class="c" title="">대구광역시 중구 동성로</td><td class="c" title="">27</td><td class="c" title="">F41</td><td class="c" title="">053-555-0174</td></tr><tr class=""><td class="n">98</td><td class="t">시설물대</td><td class="c" title="">주식회사 새봄테크</td><td class="c fixed flash" title="정비 전: 울산 남구 삼산로">울산광역시 남구 삼산로</td><td class="c" title="">31</td><td class="c" title="">C26</td><td class="c fixed flash" title="정비 전: 0525550125">052-555-0125</td></tr><tr class=""><td class="n">99</td><td class="t">계약기관</td><td class="c" title="">주식회사 새봄테크</td><td class="c fixed flash" title="정비 전: 대구광역시 중구 동선로">대구광역시 중구 동성로</td><td class="c" title="">27</td><td class="c" title="">F41</td><td class="c" title="">053-555-0143</td></tr><tr class=""><td class="n">100</td><td class="t">민원접수</td><td class="c" title="">주식회사 새봄연구소</td><td class="c" title="">서울특별시 중구 세종대로</td><td class="c" title="">11</td><td class="c manual" title="담당자 검토 대기: J6x">J6x</td><td class="c" title="">02-555-0177</td></tr></tbody>
+      </table>
+      <div class="empty" id="empty"><div><b>아직 불러온 데이터가 없습니다</b>[예시 데이터 불러오기] 또는 [▶ 재생]을 누르세요</div></div>
+    </div>
+    <div class="legend">
+      <span style="--c:#FBE6E3">오류 탐지</span>
+      <span style="--c:#E4F2EA">자동 정비 완료</span>
+      <span style="--c:#FBF0D6">담당자 검토 대기</span>
+    </div>
+  </div>
+
+  <div class="resCol res">
+    <div class="panel card">
+      <h2>결과: 데이터 품질 점수 <small>오류 셀이 없을수록 100점</small></h2>
+      <div class="top">
+        <div class="gauge">
+          <svg viewBox="0 0 220 138" aria-label="품질 점수 게이지">
+            <path d="M20 118 A90 90 0 0 1 200 118" fill="none" stroke="#EDF0F4" stroke-width="16" stroke-linecap="round"></path>
+            <path id="gArc" d="M20 118 A90 90 0 0 1 200 118" fill="none" stroke="var(--muted)" stroke-width="16" stroke-linecap="round" stroke-dasharray="282.74" stroke-dashoffset="282.74" style="transition: stroke-dashoffset 0.15s, stroke 0.3s; stroke-dashoffset: 11.3096; stroke: var(--ok);"></path>
+            <line x1="189.015067247611" y1="105.48524279678152" x2="208.76883405951378" y2="102.3565534959769" stroke="#1F2933" stroke-width="1.5" id="gTick"></line>
+            <text id="gNum" x="110" y="104" text-anchor="middle" font-size="46" font-weight="700" fill="#1F2933">96</text>
+            <text x="110" y="126" text-anchor="middle" font-size="11" fill="#6B7685">품질 점수 / 목표 95</text>
+          </svg>
+          <div class="sub" id="gSub">정비 전 <b>72</b> → 정비 후 <b style="color:var(--ok)">96</b></div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="kCells">500</div><div class="l">검사한 셀</div></div>
+          <div class="kpi bad"><div class="v" id="kOpen">20</div><div class="l">열린 오류</div></div>
+          <div class="kpi ok"><div class="v" id="kFixed">120</div><div class="l">자동 정비 완료</div></div>
+          <div class="kpi warn"><div class="v" id="kManual">20</div><div class="l">담당자 검토 대기</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel card chart">
+      <h2>주간 품질 추이 <small>점수, 점선은 목표</small></h2>
+      <div id="line"><svg viewBox="0 0 640 168" role="img" aria-label="주간 품질 점수 추이"><line x1="34" x2="622" y1="127.77777777777777" y2="127.77777777777777" stroke="#EDF0F4"></line><text x="28" y="131.77777777777777" text-anchor="end" font-size="11" fill="#6B7685">60</text><line x1="34" x2="622" y1="99.33333333333333" y2="99.33333333333333" stroke="#EDF0F4"></line><text x="28" y="103.33333333333333" text-anchor="end" font-size="11" fill="#6B7685">70</text><line x1="34" x2="622" y1="70.88888888888889" y2="70.88888888888889" stroke="#EDF0F4"></line><text x="28" y="74.88888888888889" text-anchor="end" font-size="11" fill="#6B7685">80</text><line x1="34" x2="622" y1="42.44444444444444" y2="42.44444444444444" stroke="#EDF0F4"></line><text x="28" y="46.44444444444444" text-anchor="end" font-size="11" fill="#6B7685">90</text><line x1="34" x2="622" y1="14" y2="14" stroke="#EDF0F4"></line><text x="28" y="18" text-anchor="end" font-size="11" fill="#6B7685">100</text><line x1="34" x2="622" y1="28.22222222222222" y2="28.22222222222222" stroke="#2E7D5B" stroke-dasharray="5 4" stroke-width="1.2"></line><text x="40" y="24.22222222222222" text-anchor="start" font-size="11" fill="#2E7D5B">목표 95</text><text x="34" y="160" text-anchor="middle" font-size="11" fill="#6B7685">6주 전</text><text x="132" y="160" text-anchor="middle" font-size="11" fill="#6B7685">5주 전</text><text x="230" y="160" text-anchor="middle" font-size="11" fill="#6B7685">4주 전</text><text x="328" y="160" text-anchor="middle" font-size="11" fill="#6B7685">3주 전</text><text x="426" y="160" text-anchor="middle" font-size="11" fill="#6B7685">2주 전</text><text x="524" y="160" text-anchor="middle" font-size="11" fill="#6B7685">1주 전</text><text x="622" y="160" text-anchor="middle" font-size="11" fill="#6B7685">이번 주</text><polyline points="34,119.24444444444444 132,110.71111111111111 230,113.55555555555556 328,102.17777777777778 426,96.4888888888889 524,93.64444444444445" fill="none" stroke="#8FB0D6" stroke-width="2.2"></polyline><circle cx="34" cy="119.24444444444444" r="3.5" fill="#fff" stroke="#4F7FB8" stroke-width="2"></circle><circle cx="132" cy="110.71111111111111" r="3.5" fill="#fff" stroke="#4F7FB8" stroke-width="2"></circle><circle cx="230" cy="113.55555555555556" r="3.5" fill="#fff" stroke="#4F7FB8" stroke-width="2"></circle><circle cx="328" cy="102.17777777777778" r="3.5" fill="#fff" stroke="#4F7FB8" stroke-width="2"></circle><circle cx="426" cy="96.4888888888889" r="3.5" fill="#fff" stroke="#4F7FB8" stroke-width="2"></circle><circle cx="524" cy="93.64444444444445" r="3.5" fill="#fff" stroke="#4F7FB8" stroke-width="2"></circle><text x="524" y="110.64444444444445" text-anchor="middle" font-size="11" fill="#6B7685">72</text><line x1="524" y1="93.64444444444445" x2="622" y2="25.37777777777778" stroke="#5B52FF" stroke-width="2.6"></line><circle cx="622" cy="25.37777777777778" r="6" fill="#5B52FF"></circle><text x="612" y="15.37777777777778" text-anchor="end" font-size="14" font-weight="700" fill="#5B52FF">96</text></svg></div>
+    </div>
+  </div>
+</div>
+
+<div class="rowB">
+  <div class="panel card">
+    <h2>오류 유형별 건수 <small>빨강 미처리 / 초록 정비 / 주황 검토 대기</small></h2>
+    <div id="bars"><div class="bar"><span class="nm">시도 약칭</span><div class="tr"><i class="e" style="width: 0%;"></i><i class="m" style="width: 0%;"></i><i class="f" style="width: 91.6667%;"></i></div><span class="ct">22건 / 정비 22</span></div><div class="bar"><span class="nm">도로명 오타</span><div class="tr"><i class="e" style="width: 0%;"></i><i class="m" style="width: 25%;"></i><i class="f" style="width: 54.1667%;"></i></div><span class="ct">19건 / 정비 13</span></div><div class="bar"><span class="nm">주소 띄어쓰기</span><div class="tr"><i class="e" style="width: 0%;"></i><i class="m" style="width: 0%;"></i><i class="f" style="width: 58.3333%;"></i></div><span class="ct">14건 / 정비 14</span></div><div class="bar"><span class="nm">시도코드 형식</span><div class="tr"><i class="e" style="width: 0%;"></i><i class="m" style="width: 8.33333%;"></i><i class="f" style="width: 75%;"></i></div><span class="ct">20건 / 정비 18</span></div><div class="bar"><span class="nm">기관명 표기</span><div class="tr"><i class="e" style="width: 0%;"></i><i class="m" style="width: 0%;"></i><i class="f" style="width: 91.6667%;"></i></div><span class="ct">22건 / 정비 22</span></div><div class="bar"><span class="nm">업종코드 형식</span><div class="tr"><i class="e" style="width: 0%;"></i><i class="m" style="width: 16.6667%;"></i><i class="f" style="width: 58.3333%;"></i></div><span class="ct">18건 / 정비 14</span></div><div class="bar"><span class="nm">연락처 패턴</span><div class="tr"><i class="e" style="width: 0%;"></i><i class="m" style="width: 0%;"></i><i class="f" style="width: 75%;"></i></div><span class="ct">18건 / 정비 18</span></div><div class="bar"><span class="nm">결측 표기</span><div class="tr"><i class="e" style="width: 0%;"></i><i class="m" style="width: 33.3333%;"></i><i class="f" style="width: 0%;"></i></div><span class="ct">8건</span></div></div>
+  </div>
+  <div class="panel card">
+    <h2>테이블별 오류율 히트맵 <small>열린 오류 / 행 수</small></h2>
+    <div class="heat" id="heat"><span></span><span class="h">기관명</span><span class="h">주소</span><span class="h">시도코드</span><span class="h">업종코드</span><span class="h">연락처</span><span class="r">사업장대장</span><span class="z" data-t="사업장대장" data-c="org" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="사업장대장" data-c="addr" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="사업장대장" data-c="sido" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="사업장대장" data-c="biz" style="background: var(--seq1); color: var(--text);">6%</span><span class="z" data-t="사업장대장" data-c="tel" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="r">시설물대장</span><span class="z" data-t="시설물대장" data-c="org" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="시설물대장" data-c="addr" style="background: var(--seq1); color: var(--text);">6%</span><span class="z" data-t="시설물대장" data-c="sido" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="시설물대장" data-c="biz" style="background: var(--seq2); color: var(--text);">12%</span><span class="z" data-t="시설물대장" data-c="tel" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="r">계약기관</span><span class="z" data-t="계약기관" data-c="org" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="계약기관" data-c="addr" style="background: var(--seq1); color: var(--text);">6%</span><span class="z" data-t="계약기관" data-c="sido" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="계약기관" data-c="biz" style="background: var(--seq2); color: var(--text);">12%</span><span class="z" data-t="계약기관" data-c="tel" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="r">민원접수</span><span class="z" data-t="민원접수" data-c="org" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="민원접수" data-c="addr" style="background: var(--seq2); color: var(--text);">12%</span><span class="z" data-t="민원접수" data-c="sido" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="민원접수" data-c="biz" style="background: var(--seq2); color: var(--text);">12%</span><span class="z" data-t="민원접수" data-c="tel" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="r">자산목록</span><span class="z" data-t="자산목록" data-c="org" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="자산목록" data-c="addr" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="자산목록" data-c="sido" style="background: var(--seq1); color: var(--text);">6%</span><span class="z" data-t="자산목록" data-c="biz" style="background: var(--seq2); color: var(--text);">19%</span><span class="z" data-t="자산목록" data-c="tel" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="r">거래처코드</span><span class="z" data-t="거래처코드" data-c="org" style="background: rgb(241, 243, 246); color: var(--muted);">0</span><span class="z" data-t="거래처코드" data-c="addr" style="background: var(--seq2); color: var(--text);">13%</span><span class="z" data-t="거래처코드" data-c="sido" style="background: var(--seq1); color: var(--text);">6%</span><span class="z" data-t="거래처코드" data-c="biz" style="background: var(--seq2); color: var(--text);">13%</span><span class="z" data-t="거래처코드" data-c="tel" style="background: rgb(241, 243, 246); color: var(--muted);">0</span></div>
+  </div>
+  <div class="panel card">
+    <h2>정비 규칙 8개 적용 <small id="ruleSum">적용 129건</small></h2>
+    <div class="rules" id="rules"><div class="rule used"><b>R1</b><span><span class="nm">시도 명칭 정식화</span><span class="ex">서울 → 서울특별시</span></span><span class="k">22건</span></div><div class="rule used"><b>R2</b><span><span class="nm">도로명 사전 대조 교정</span><span class="ex">테해란로 → 테헤란로</span></span><span class="k">13건</span></div><div class="rule used"><b>R3</b><span><span class="nm">행정구역 띄어쓰기</span><span class="ex">서울특별시강남구 → 서울특별시 강남구</span></span><span class="k">14건</span></div><div class="rule used"><b>R4</b><span><span class="nm">시도코드 2자리 표준화</span><span class="ex">서울 / １１ / 011 → 11</span></span><span class="k">18건</span></div><div class="rule used"><b>R5</b><span><span class="nm">법인 표기 통일</span><span class="ex">(주)가온정보 → 주식회사 가온정보</span></span><span class="k">22건</span></div><div class="rule used"><b>R6</b><span><span class="nm">업종코드 형식 통일</span><span class="ex">j-62 → J62</span></span><span class="k">14건</span></div><div class="rule used"><b>R7</b><span><span class="nm">연락처 구분자 통일</span><span class="ex">0255501xx → 02-555-01xx</span></span><span class="k">18건</span></div><div class="rule used"><b>R8</b><span><span class="nm">결측 표기 정리와 검토 이관</span><span class="ex">N/A, -, null → 검토 대기</span></span><span class="k">8건</span></div></div>
+  </div>
+</div>
+
+<div class="foot">
+  <span>LH AI Challenge 2026 예시, 가상 데이터, 시연용 미리 만든 결과</span>
+  <a href="https://lh-ai-day-examples.pages.dev/index.html">갤러리로 돌아가기</a>
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s){return document.querySelector(s)};
+var seed=20261029;
+function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(rnd()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function pick(a){return a[Math.floor(rnd()*a.length)]}
+
+var COLS=["org","addr","sido","biz","tel"];
+var COLNAME={org:"기관명",addr:"주소",sido:"시도코드",biz:"업종코드",tel:"연락처"};
+var TABLES=["사업장대장","시설물대장","계약기관","민원접수","자산목록","거래처코드"];
+var RULES=[
+ {id:1,nm:"시도 명칭 정식화",ex:"서울 → 서울특별시",bar:"시도 약칭"},
+ {id:2,nm:"도로명 사전 대조 교정",ex:"테해란로 → 테헤란로",bar:"도로명 오타"},
+ {id:3,nm:"행정구역 띄어쓰기",ex:"서울특별시강남구 → 서울특별시 강남구",bar:"주소 띄어쓰기"},
+ {id:4,nm:"시도코드 2자리 표준화",ex:"서울 / １１ / 011 → 11",bar:"시도코드 형식"},
+ {id:5,nm:"법인 표기 통일",ex:"(주)가온정보 → 주식회사 가온정보",bar:"기관명 표기"},
+ {id:6,nm:"업종코드 형식 통일",ex:"j-62 → J62",bar:"업종코드 형식"},
+ {id:7,nm:"연락처 구분자 통일",ex:"0255501xx → 02-555-01xx",bar:"연락처 패턴"},
+ {id:8,nm:"결측 표기 정리와 검토 이관",ex:"N/A, -, null → 검토 대기",bar:"결측 표기"}
+];
+var CITIES=[
+ {sido:"서울특별시",s:"서울",code:"11",gu:"강남구",road:"테헤란로",typo:"테해란로",area:"02"},
+ {sido:"서울특별시",s:"서울",code:"11",gu:"중구",road:"세종대로",typo:"세종데로",area:"02"},
+ {sido:"부산광역시",s:"부산",code:"26",gu:"해운대구",road:"해운대로",typo:"해운데로",area:"051"},
+ {sido:"대구광역시",s:"대구",code:"27",gu:"중구",road:"동성로",typo:"동선로",area:"053"},
+ {sido:"인천광역시",s:"인천",code:"28",gu:"연수구",road:"컨벤시아대로",typo:"컨벤시아데로",area:"032"},
+ {sido:"광주광역시",s:"광주",code:"29",gu:"동구",road:"충장로",typo:"충장노",area:"062"},
+ {sido:"대전광역시",s:"대전",code:"30",gu:"유성구",road:"대학로",typo:"대학노",area:"042"},
+ {sido:"경기도",s:"경기",code:"41",gu:"성남시",road:"판교로",typo:"판교노",area:"031"},
+ {sido:"울산광역시",s:"울산",code:"31",gu:"남구",road:"삼산로",typo:"삼상로",area:"052"}
+];
+var PRE=["가온","나루","다온","미르","새봄","한울","이든","하늘","푸른","온새미"];
+var SUF=["정보","테크","솔루션","시스템","연구소","네트웍스"];
+var BIZ=["J62","C26","K64","M70","G46","F41","J63","N74"];
+var N=100;
+
+/* 데이터 생성 */
+var rows=[];
+(function build(){
+  for(var i=0;i<N;i++){
+    var c=(i===2)?CITIES[0]:pick(CITIES);
+    var name=pick(PRE)+pick(SUF);
+    var biz=pick(BIZ);
+    var tel=c.area+"-555-01"+String(10+Math.floor(rnd()*89));
+    var v={org:"주식회사 "+name,addr:c.sido+" "+c.gu+" "+c.road,sido:c.code,biz:biz,tel:tel};
+    var r={i:i,tbl:TABLES[i%6],city:c,name:name,cells:{}};
+    COLS.forEach(function(k){r.cells[k]={row:r,col:k,valid:v[k],raw:v[k],steps:[],det:[],manual:false,state:"raw",hasErr:false,final:v[k]}});
+    rows.push(r);
+  }
+  function idxList(first){var a=[];for(var i=0;i<N;i++)if(i!==first)a.push(i);shuffle(a);if(first!==undefined)a.unshift(first);return a}
+  function mark(cell,raw,steps,det,manual){cell.raw=raw;cell.steps=steps;cell.det=det;cell.manual=!!manual;cell.hasErr=true}
+  /* 주소 54 = R1 22 + R2 18(검토 6) + R3 14 */
+  var A=idxList(2),p=0;
+  for(var k=0;k<22;k++){var r=rows[A[p++]],c=r.cities||r.city,cell=r.cells.addr;
+    if(r.i===2){mark(cell,"서울 강남구 테해란로",[{rule:1,text:"서울특별시 강남구 테해란로"},{rule:2,text:cell.valid}],[1,2])}
+    else{mark(cell,c.s+" "+c.gu+" "+c.road,[{rule:1,text:cell.valid}],[1])}}
+  var odd=["새빛로","미래로","행복로"];
+  for(k=0;k<18;k++){r=rows[A[p++]];c=r.city;cell=r.cells.addr;
+    if(k<6){mark(cell,c.sido+" "+c.gu+" "+pick(odd),[],[2],true)}
+    else{mark(cell,c.sido+" "+c.gu+" "+c.typo,[{rule:2,text:cell.valid}],[2])}}
+  for(k=0;k<14;k++){r=rows[A[p++]];c=r.city;cell=r.cells.addr;
+    var raw=(k%2===0)?c.sido+c.gu+" "+c.road:c.sido+" "+c.gu+c.road;
+    mark(cell,raw,[{rule:3,text:cell.valid}],[3])}
+  /* 시도코드 20 = 자동 18 + 검토 2 */
+  var S=idxList();
+  for(k=0;k<20;k++){r=rows[S[k]];c=r.city;cell=r.cells.sido;
+    if(k<2){mark(cell,k===0?"11/41":"미상",[],[4],true)}
+    else{var m=k%3;var raw2=m===0?c.code.replace(/\d/g,function(d){return String.fromCharCode(0xFF10+(+d))}):(m===1?c.s:"0"+c.code);
+      mark(cell,raw2,[{rule:4,text:c.code}],[4])}}
+  /* 업종코드 26 = R6 18(검토 4) + R8 8 */
+  var B=idxList(),bm=["J6x","K6","C?6","M7O"],bn=["N/A","-","null","없음","미기재","N/A","-","null"];
+  for(k=0;k<18;k++){r=rows[B[k]];cell=r.cells.biz;var v=cell.valid;
+    if(k<4){mark(cell,bm[k],[],[6],true)}
+    else{var q=k%3;mark(cell,q===0?v.toLowerCase():(q===1?v.charAt(0)+"-"+v.slice(1):v.charAt(0)+" "+v.slice(1)),[{rule:6,text:v}],[6])}}
+  for(k=18;k<26;k++){r=rows[B[k]];mark(r.cells.biz,bn[k-18],[],[8],true)}
+  /* 기관명 22 */
+  var O=idxList();
+  for(k=0;k<22;k++){r=rows[O[k]];cell=r.cells.org;var nm=r.name,t=k%3;
+    mark(cell,t===0?"(주)"+nm:(t===1?nm+"(주)":"주식회사"+nm),[{rule:5,text:cell.valid}],[5])}
+  /* 연락처 18 */
+  var T=idxList();
+  for(k=0;k<18;k++){r=rows[T[k]];cell=r.cells.tel;var d=k%3;
+    mark(cell,d===0?cell.valid.replace(/-/g,""):(d===1?cell.valid.replace(/-/g,"."):cell.valid.replace(/-/g," ")),[{rule:7,text:cell.valid}],[7])}
+  rows.forEach(function(r){COLS.forEach(function(k){var c2=r.cells[k];if(c2.steps.length)c2.final=c2.steps[c2.steps.length-1].text})});
+})();
+
+/* 상태 */
+var token=0,phase=0,loaded=false,lastRule=0,scanned=0,weekOn=false;
+var tdRef=[],trRef=[];
+var $tb=$("#tb");
+
+function cellText(c){return c.state==="fixed"?c.final:c.raw}
+function paintCell(c){
+  var td=c.td;td.className="c"+(c.state==="err"?" err":c.state==="fixed"?" fixed":c.state==="manual"?" manual":"");
+  td.textContent=cellText(c);
+  td.title=c.state==="fixed"?"정비 전: "+c.raw:(c.state==="manual"?"담당자 검토 대기: "+c.raw:"");
+}
+function buildTable(){
+  $tb.innerHTML="";trRef=[];
+  rows.forEach(function(r){
+    var tr=document.createElement("tr");
+    var n=document.createElement("td");n.className="n";n.textContent=r.i+1;tr.appendChild(n);
+    var t=document.createElement("td");t.className="t";t.textContent=r.tbl.slice(0,4);tr.appendChild(t);
+    COLS.forEach(function(k){var td=document.createElement("td");r.cells[k].td=td;tr.appendChild(td);paintCell(r.cells[k])});
+    $tb.appendChild(tr);r.tr=tr;
+  });
+}
+function resetCells(){
+  rows.forEach(function(r){COLS.forEach(function(k){var c=r.cells[k];c.state="raw";paintCell(c)});r.tr.classList.remove("scan")});
+  scanned=0;lastRule=0;weekOn=false;phase=0;
+  $("#tbox").scrollTop=0;$("#prog").style.width="0";
+  $("#tkBody").style.color="var(--muted)";
+  $("#tkBody").textContent="재생하면 고친 내용이 한 줄씩 여기에 나타납니다";
+}
+
+/* 집계 */
+function stats(){
+  var s={err:0,manual:0,fixed:0,byRule:{},heat:{}};
+  RULES.forEach(function(r){s.byRule[r.id]={e:0,m:0,f:0}});
+  TABLES.forEach(function(t){s.heat[t]={};COLS.forEach(function(k){s.heat[t][k]=0})});
+  rows.forEach(function(r){COLS.forEach(function(k){
+    var c=r.cells[k];if(c.state==="err")s.err++;else if(c.state==="manual")s.manual++;else if(c.state==="fixed")s.fixed++;
+    if(c.state==="err"||c.state==="manual")s.heat[r.tbl][k]++;
+    if(c.state!=="raw"){c.det.forEach(function(id){var b=s.byRule[id];if(c.state==="err")b.e++;else if(c.state==="manual")b.m++;else b.f++})}
+  })});
+  return s;
+}
+var groupN={};rows.forEach(function(r){groupN[r.tbl]=(groupN[r.tbl]||0)+1});
+
+/* 게이지, KPI, 막대, 히트맵, 로그 DOM */
+var ARC=282.74;
+var barsEl=$("#bars");
+RULES.forEach(function(r){
+  var d=document.createElement("div");d.className="bar";
+  d.innerHTML='<span class="nm">'+r.bar+'</span><div class="tr"><i class="e"></i><i class="m"></i><i class="f"></i></div><span class="ct">0</span>';
+  barsEl.appendChild(d);r.barEl=d;
+});
+var heatEl=$("#heat");
+(function(){
+  var h='<span></span>';COLS.forEach(function(k){h+='<span class="h">'+COLNAME[k]+'</span>'});
+  TABLES.forEach(function(t){h+='<span class="r">'+t+'</span>';COLS.forEach(function(k){h+='<span class="z" data-t="'+t+'" data-c="'+k+'">-</span>'})});
+  heatEl.innerHTML=h;
+})();
+var heatZ={};heatEl.querySelectorAll(".z").forEach(function(z){heatZ[z.dataset.t+"|"+z.dataset.c]=z});
+var rulesEl=$("#rules");
+RULES.forEach(function(r){
+  var d=document.createElement("div");d.className="rule";
+  d.innerHTML='<b>R'+r.id+'</b><span><span class="nm">'+r.nm+'</span><span class="ex">'+r.ex+'</span></span><span class="k">0건</span>';
+  rulesEl.appendChild(d);r.el=d;
+});
+function heatColor(p){
+  if(p<=0)return["#F1F3F6","var(--muted)"];
+  if(p<.10)return["var(--seq1)","var(--text)"];
+  if(p<.25)return["var(--seq2)","var(--text)"];
+  if(p<.40)return["var(--seq3)","var(--text)"];
+  if(p<.60)return["var(--seq4)","#fff"];
+  return["var(--seq5)","#fff"];
+}
+function scoreColor(v){return v>=90?"var(--ok)":(v>=80?"var(--warn)":"var(--bad)")}
+
+var WEEKS=["6주 전","5주 전","4주 전","3주 전","2주 전","1주 전","이번 주"];
+var BASE=[63,66,65,69,71,72];
+function lineSvg(cur){
+  var W=640,H=168,L=34,R=18,T=14,B=26,y0=55,y1=100;
+  function X(i){return L+i*(W-L-R)/6}
+  function Y(v){return T+(y1-v)*(H-T-B)/(y1-y0)}
+  var g="";
+  [60,70,80,90,100].forEach(function(v){g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="#EDF0F4"/><text x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end" font-size="11" fill="#6B7685">'+v+'</text>'});
+  g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(95)+'" y2="'+Y(95)+'" stroke="#2E7D5B" stroke-dasharray="5 4" stroke-width="1.2"/><text x="'+(L+6)+'" y="'+(Y(95)-4)+'" text-anchor="start" font-size="11" fill="#2E7D5B">목표 95</text>';
+  WEEKS.forEach(function(w,i){g+='<text x="'+X(i)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" fill="#6B7685">'+w+'</text>'});
+  var pts=BASE.map(function(v,i){return X(i)+","+Y(v)}).join(" ");
+  g+='<polyline points="'+pts+'" fill="none" stroke="#8FB0D6" stroke-width="2.2"/>';
+  BASE.forEach(function(v,i){g+='<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="3.5" fill="#fff" stroke="#4F7FB8" stroke-width="2"/>'});
+  g+='<text x="'+X(5)+'" y="'+(Y(72)+17)+'" text-anchor="middle" font-size="11" fill="#6B7685">72</text>';
+  if(cur!==null){
+    g+='<line x1="'+X(5)+'" y1="'+Y(72)+'" x2="'+X(6)+'" y2="'+Y(cur)+'" stroke="#5B52FF" stroke-width="2.6"/>';
+    g+='<circle cx="'+X(6)+'" cy="'+Y(cur)+'" r="6" fill="#5B52FF"/><text x="'+(X(6)-10)+'" y="'+(Y(cur)-10)+'" text-anchor="end" font-size="14" font-weight="700" fill="#5B52FF">'+Math.round(cur)+'</text>';
+  }
+  return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="주간 품질 점수 추이">'+g+'</svg>';
+}
+
+function refresh(){
+  var s=stats(),open=s.err+s.manual;
+  var started=phase>=2&&scanned>0;
+  var score=started?100-open/5:null;
+  var show=(phase>=3||phase===2&&scanned>=N)?true:started;
+  /* 게이지 */
+  var arc=$("#gArc"),num=$("#gNum");
+  if(score===null){arc.style.strokeDashoffset=ARC;num.textContent="-";arc.style.stroke="var(--muted)"}
+  else{arc.style.strokeDashoffset=ARC*(1-score/100);arc.style.stroke=scoreColor(score);num.textContent=Math.round(score)}
+  /* 목표선 눈금: 95점 위치 */
+  var a=Math.PI*(1-0.95),cx=110,cy=118,r0=80,r1=100;
+  var tk=$("#gTick");tk.setAttribute("x1",cx+r0*Math.cos(a));tk.setAttribute("y1",cy-r0*Math.sin(a));tk.setAttribute("x2",cx+r1*Math.cos(a));tk.setAttribute("y2",cy-r1*Math.sin(a));
+  var sub=$("#gSub");
+  if(phase>=3&&scanned>=N)sub.innerHTML="정비 전 <b>72</b> → 정비 후 <b style=\"color:var(--ok)\">"+Math.round(score)+"</b>";
+  else if(started)sub.textContent=scanned>=N?"탐지 완료":"측정 중 ("+scanned+" / "+N+"행)";
+  else sub.innerHTML="&nbsp;";
+  /* KPI */
+  var inRun=(phase>=1);
+  $("#kCells").textContent=inRun?(scanned*COLS.length).toLocaleString():"0";
+  $("#kOpen").textContent=open;
+  $("#kFixed").textContent=s.fixed;
+  $("#kManual").textContent=s.manual;
+  /* 막대 */
+  var tot=0;
+  RULES.forEach(function(r){
+    var b=s.byRule[r.id],sc=100/24;
+    var tr=r.barEl.querySelector(".tr");
+    tr.children[0].style.width=(b.e*sc)+"%";tr.children[1].style.width=(b.m*sc)+"%";tr.children[2].style.width=(b.f*sc)+"%";
+    r.barEl.querySelector(".ct").textContent=(b.e+b.m+b.f)+"건"+(b.f?" / 정비 "+b.f:"");
+    var applied=b.f+(r.id===8?b.m:0);tot+=applied;
+    r.el.classList.toggle("used",applied>0);
+    r.el.querySelector(".k").textContent=applied+"건";
+    r.el.classList.toggle("hit",lastRule===r.id&&phase===3);
+  });
+  $("#ruleSum").textContent="적용 "+tot+"건";
+  /* 히트맵 */
+  TABLES.forEach(function(t){COLS.forEach(function(k){
+    var z=heatZ[t+"|"+k],n=s.heat[t][k],p=n/groupN[t];
+    if(!started){z.style.background="#F1F3F6";z.style.color="var(--muted)";z.textContent="-";return}
+    var col=heatColor(p);z.style.background=col[0];z.style.color=col[1];z.textContent=n===0?"0":Math.round(p*100)+"%";
+  })});
+  /* 추이 */
+  $("#line").innerHTML=lineSvg(weekOn?score:null);
+}
+
+/* 흐름 */
+var STEPN=5;
+function setStep(n){
+  document.querySelectorAll(".step").forEach(function(el,i){
+    el.className="step"+(i+1<n?" done":(i+1===n?" on":""));
+  });
+}
+function stepsDone(){document.querySelectorAll(".step").forEach(function(el){el.className="step done"})}
+function setState(s){
+  document.body.dataset.state=s;
+  var b=$("#btnPlay");
+  b.textContent=s==="playing"?"■ 멈춤":(s==="done"?"↺ 다시":"▶ 재생");
+}
+function sleep(ms,my){return new Promise(function(res,rej){setTimeout(function(){if(my!==token)rej("stop");else res()},ms)})}
+function tkSet(old,nw,tags){
+  var b=$("#tkBody");b.style.color="var(--text)";
+  b.innerHTML='<span class="old"></span><span class="arr">→</span><span class="new"></span>'+(tags?'<span class="rt"></span>':"");
+  b.querySelector(".old").textContent=old;b.querySelector(".new").textContent=nw;
+  if(tags)b.querySelector(".rt").textContent=tags;
+}
+function follow(tr){var box=$("#tbox");box.scrollTop=Math.max(0,tr.offsetTop-120)}
+
+function load(){
+  if(loaded)return;
+  loaded=true;buildTable();setState("loaded");
+  $("#tblInfo").textContent="레코드 100행 불러옴";
+  refresh();
+}
+async function run(){
+  token++;var my=token;
+  if(!loaded)load();
+  resetCells();refresh();setState("playing");
+  try{
+    /* 1 파일 읽기 */
+    phase=1;setStep(1);
+    $("#tkBody").style.color="var(--muted)";$("#tkBody").textContent="레코드 파일을 읽는 중: 100행 x 5열 = 500셀";
+    for(var p=0;p<=10;p++){$("#prog").style.width=(p*10)+"%";await sleep(130,my)}
+    refresh();
+    /* 2 오류 탐지 */
+    phase=2;setStep(2);$("#prog").style.width="0";
+    $("#tkBody").textContent="표준 가이드와 대조하며 오류를 탐지하는 중";
+    for(var i=0;i<N;i++){
+      var r=rows[i];r.tr.classList.add("scan");
+      if(i>0)rows[i-1].tr.classList.remove("scan");
+      COLS.forEach(function(k){var c=r.cells[k];if(c.hasErr){c.state="err";paintCell(c)}});
+      scanned=i+1;follow(r.tr);$("#prog").style.width=(scanned)+"%";
+      refresh();await sleep(50,my);
+    }
+    rows[N-1].tr.classList.remove("scan");
+    $("#tkBody").textContent="오류 셀 "+stats().err+"개 탐지, 품질 점수 72";
+    await sleep(900,my);
+    $("#tbox").scrollTop=0;weekOn=true;refresh();await sleep(500,my);
+    /* 3 표준 규칙 정비 */
+    phase=3;setStep(3);$("#prog").style.width="0";
+    var targets=rows.filter(function(r){return COLS.some(function(k){return r.cells[k].hasErr})});
+    for(var t=0;t<targets.length;t++){
+      var row=targets[t];row.tr.classList.add("scan");follow(row.tr);
+      for(var q=0;q<COLS.length;q++){
+        var c=row.cells[COLS[q]];if(!c.hasErr)continue;
+        if(c.manual){c.state="manual";paintCell(c);lastRule=c.det[0];}
+        else{
+          for(var sI=0;sI<c.steps.length;sI++){lastRule=c.steps[sI].rule;
+            if(sI<c.steps.length-1){c.td.textContent=c.steps[sI].text;refresh();await sleep(320,my)}}
+          c.state="fixed";paintCell(c);c.td.classList.add("flash");
+          var tags=c.steps.map(function(x){return"R"+x.rule}).join("+");
+          tkSet(c.raw,c.final,tags+" "+RULES[c.steps[0].rule-1].nm+(c.steps.length>1?" 외":""));
+          refresh();
+          if(c.steps.length>1)await sleep(900,my);
+        }
+      }
+      $("#prog").style.width=Math.round((t+1)/targets.length*100)+"%";
+      refresh();await sleep(95,my);
+      row.tr.classList.remove("scan");
+    }
+    lastRule=0;refresh();
+    /* 4 재검증 */
+    setStep(4);$("#tbox").scrollTop=0;
+    $("#tkBody").style.color="var(--text)";$("#tkBody").textContent="규칙 8개로 정비한 결과를 다시 검증: 자동 정비 120셀, 담당자 검토 20셀";
+    await sleep(1100,my);
+    /* 5 대시보드 반영 */
+    setStep(5);refresh();
+    await sleep(1000,my);
+    stepsDone();setState("done");phase=4;refresh();
+    $("#tkBody").textContent="정비 완료: 품질 점수 72 → 96, 검토 대기 20건은 담당자에게 전달";
+    document.body.dataset.done="1";window.__done=true;
+  }catch(e){
+    if(e!=="stop")throw e;
+  }
+}
+function stop(){
+  token++;
+  document.querySelectorAll(".step").forEach(function(el){el.classList.remove("on")});
+  rows.forEach(function(r){r.tr&&r.tr.classList.remove("scan")});
+  setState("loaded");
+}
+$("#btnLoad").addEventListener("click",function(){
+  if(document.body.dataset.state==="playing")return;
+  loaded=false;load();resetCells();setStep(0);refresh();
+});
+$("#btnPlay").addEventListener("click",function(){
+  var st=document.body.dataset.state;
+  if(st==="playing"){stop();return}
+  run();
+});
+
+/* 초기 */
+setStep(0);refresh();
+if(/[?&]auto=1/.test(location.search)){load();run()}
+})();
+</script>
+
+
+</body></html>
